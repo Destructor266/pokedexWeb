@@ -1,0 +1,22 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+#listaPokemons {
+  /* Ocupa toda la pantalla y es el elemento que hace scroll (index.js escucha su scrollend) */
+  height: 100dvh;
+  overflow-y: auto;
+  padding: 16px;
+
+  display: grid;
+  grid-template-columns: repeat(16, 50px);
+  gap: 70px;
+  justify-content: center;
+  align-content: start;
+}
