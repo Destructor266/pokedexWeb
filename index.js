@@ -153,16 +153,27 @@ async function anadirPokemonsPantalla(pokemonsResults) {
   console.log(
     `Página cargada: ${pokemons.length - descargados.length} desde caché, ${descargados.length} desde la API`,
   );
-  pokemons.forEach((pokemon) => crearEstructuraLista(pokemon.name));
+  pokemons.forEach((pokemon) => crearEstructuraLista(pokemon));
 }
 
-function crearEstructuraLista(strNombrePokemon) {
+function crearEstructuraLista(pokemon) {
+  const enlacePokemon = document.createElement('a');
+  const spritePokemon = document.createElement('img');
   const registroPokemon = document.createElement("div");
   const nombrePokemon = document.createElement("p");
+
+  enlacePokemon.classList = 'enlacePokemon';
+  spritePokemon.classList = 'spritePokemon';
   registroPokemon.classList = "registroPokemon";
   nombrePokemon.classList = "nombrePokemon";
-  nombrePokemon.innerHTML = strNombrePokemon;
-  registroPokemon.appendChild(nombrePokemon);
+
+  enlacePokemon.href = pokemon.sprites.front_default;
+  spritePokemon.src = pokemon.sprites.front_default;
+  nombrePokemon.innerHTML = pokemon.name;
+
+  enlacePokemon.appendChild(spritePokemon);
+  enlacePokemon.appendChild(nombrePokemon);
+  registroPokemon.appendChild(enlacePokemon);
   listaPokemons.appendChild(registroPokemon);
 }
 

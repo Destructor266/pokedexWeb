@@ -15,8 +15,22 @@ body {
   padding: 16px;
 
   display: grid;
-  grid-template-columns: repeat(16, 50px);
-  gap: 70px;
+  grid-template-columns: repeat(16, 60px);
+  gap: 50px;
   justify-content: center;
   align-content: start;
+}
+
+.registroPokemon {
+  display: table;
+  background-color: #35c935;
+  margin-bottom: -14px;
+}
+
+.registroPokemon p {
+  text-align: center;
+}
+
+.registroPokemon img {
+  margin-bottom: -16px;
 }
