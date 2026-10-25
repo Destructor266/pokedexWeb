@@ -1,5 +1,6 @@
 const API_BASE_URL = "https://pokeapi.co/api/v2";
 const listaPokemons = document.getElementById("listaPokemons");
+const dialogDetallePokemon = document.getElementById("dialogDetallePokemon");
 const numeroPaginasPorRegistro = 20;
 // Distancia al final de la lista (en px) a partir de la cual se pide la siguiente página
 const margenCarga = 100;
@@ -157,17 +158,17 @@ async function anadirPokemonsPantalla(pokemonsResults) {
 }
 
 function crearEstructuraLista(pokemon) {
-  const enlacePokemon = document.createElement('a');
-  const spritePokemon = document.createElement('img');
+  const enlacePokemon = document.createElement("a");
+  const spritePokemon = document.createElement("img");
   const registroPokemon = document.createElement("div");
   const nombrePokemon = document.createElement("p");
 
-  enlacePokemon.classList = 'enlacePokemon';
-  spritePokemon.classList = 'spritePokemon';
+  enlacePokemon.classList = "enlacePokemon";
+  spritePokemon.classList = "spritePokemon";
   registroPokemon.classList = "registroPokemon";
   nombrePokemon.classList = "nombrePokemon";
 
-  enlacePokemon.href = pokemon.sprites.front_default;
+  enlacePokemon.href = "#" + pokemon.name;
   spritePokemon.src = pokemon.sprites.front_default;
   nombrePokemon.innerHTML = pokemon.name;
 
@@ -177,8 +178,29 @@ function crearEstructuraLista(pokemon) {
   listaPokemons.appendChild(registroPokemon);
 }
 
+function sincronizarModalConHash() {
+  const nombre = window.location.hash.slice(1); // quita la "#"
+
+  if (nombre) {
+    // aquí cargarías y pintarías el pokémon (obtenerPkmn(nombre)...)
+    if (!dialogDetallePokemon.open) dialogDetallePokemon.showModal();
+  } else {
+    if (dialogDetallePokemon.open) dialogDetallePokemon.close();
+  }
+}
+
 listaPokemons.addEventListener("scroll", () => {
   if (cercaDelFinal()) pokeDex();
 });
 
 pokeDex();
+
+window.addEventListener("hashchange", sincronizarModalConHash);
+
+sincronizarModalConHash();
+
+document.addEventListener("click", (event) => {
+  if (event.target === dialogDetallePokemon) {
+    window.location.hash = "";
+  }
+});
