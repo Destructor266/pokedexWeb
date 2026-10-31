@@ -178,15 +178,58 @@ function crearEstructuraLista(pokemon) {
   listaPokemons.appendChild(registroPokemon);
 }
 
-function sincronizarModalConHash() {
-  const nombre = window.location.hash.slice(1); // quita la "#"
+// Devuelve el detalle de un pokémon: primero lo busca en la caché y, si no está,
+// lo pide a la API y lo guarda para la próxima vez
+async function obtenerDetallePkmn(nombre) {
+  const enCache = await obtenerPkmn(nombre);
+  if (enCache) return enCache;
+  const descargado = await obtenerJSON(`${API_BASE_URL}/pokemon/${nombre}/`);
+  await actualizarPkmn([descargado]);
+  return descargado;
+}
 
-  if (nombre) {
-    // aquí cargarías y pintarías el pokémon (obtenerPkmn(nombre)...)
-    if (!dialogDetallePokemon.open) dialogDetallePokemon.showModal();
-  } else {
+function nombreDesdeHash() {
+  return decodeURIComponent(window.location.hash.slice(1)).toLowerCase();
+}
+
+async function sincronizarModalConHash() {
+  const nombre = nombreDesdeHash();
+
+  if (!nombre) {
     if (dialogDetallePokemon.open) dialogDetallePokemon.close();
+    return;
   }
+
+  // Se limpia siempre, también si el modal ya estaba abierto con otro pokémon
+  dialogDetallePokemon.replaceChildren();
+  if (!dialogDetallePokemon.open) dialogDetallePokemon.showModal();
+
+  try {
+    const pkmn = await obtenerDetallePkmn(nombre);
+    // Si mientras llegaba el pokémon el hash ha cambiado, esta respuesta ya no vale
+    if (nombreDesdeHash() !== nombre) return;
+    crearFichaPkmn(pkmn);
+  } catch (error) {
+    console.error(`No se pudo cargar ${nombre}:`, error);
+    if (nombreDesdeHash() !== nombre) return;
+    dialogDetallePokemon.textContent = `No se pudo cargar "${nombre}"`;
+  }
+}
+
+function crearFichaPkmn(pkmn) {
+  const spritePokemonFicha = document.createElement("img");
+  const nombrePokemonFicha = document.createElement("p");
+  const fichaPokemon = document.createElement("div");
+
+  spritePokemonFicha.classList = "spritePokemonFicha";
+  fichaPokemon.classList = "fichaPokemon";
+  nombrePokemonFicha.classList = "nombrePokemonFicha";
+
+  spritePokemonFicha.src = pkmn.sprites.front_default;
+  nombrePokemonFicha.innerHTML = pkmn.name;
+
+  dialogDetallePokemon.appendChild(nombrePokemonFicha);
+  dialogDetallePokemon.appendChild(spritePokemonFicha);
 }
 
 listaPokemons.addEventListener("scroll", () => {
@@ -199,8 +242,15 @@ window.addEventListener("hashchange", sincronizarModalConHash);
 
 sincronizarModalConHash();
 
+// El diálogo puede cerrarse con Esc, con close() o al pulsar fuera: en todos los
+// casos se borra la ficha y se quita el hash para que URL y modal coincidan
+dialogDetallePokemon.addEventListener("close", () => {
+  dialogDetallePokemon.replaceChildren();
+  if (window.location.hash) window.location.hash = "";
+});
+
 document.addEventListener("click", (event) => {
   if (event.target === dialogDetallePokemon) {
-    window.location.hash = "";
+    dialogDetallePokemon.close();
   }
 });
