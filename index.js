@@ -178,14 +178,44 @@ function crearEstructuraLista(pokemon) {
   listaPokemons.appendChild(registroPokemon);
 }
 
+// Pide /pokemon-species/ y devuelve la descripción en español (o en inglés si no hay).
+// Se usa pkmn.species.url en lugar del nombre porque algunas formas (deoxys-normal)
+// no se llaman igual que su especie (deoxys)
+async function obtenerDescripcionPkmn(pkmn) {
+  const especie = await obtenerJSON(pkmn.species.url);
+  const entradas = especie.flavor_text_entries;
+  // Hay una entrada por juego e idioma; la última suele ser la del juego más reciente
+  const entrada =
+    entradas.findLast((e) => e.language.name === "es") ??
+    entradas.findLast((e) => e.language.name === "en");
+  // Los textos vienen con \n y \f (saltos de línea de los juegos originales)
+  return entrada ? entrada.flavor_text.replace(/[\n\f\r]+/g, " ") : "";
+}
+
 // Devuelve el detalle de un pokémon: primero lo busca en la caché y, si no está,
-// lo pide a la API y lo guarda para la próxima vez
+// lo pide a la API. La descripción no viene en /pokemon/, así que se pide aparte
+// la primera vez que se abre su ficha y se guarda junto al resto de datos
 async function obtenerDetallePkmn(nombre) {
-  const enCache = await obtenerPkmn(nombre);
-  if (enCache) return enCache;
-  const descargado = await obtenerJSON(`${API_BASE_URL}/pokemon/${nombre}/`);
-  await actualizarPkmn([descargado]);
-  return descargado;
+  let pkmn = await obtenerPkmn(nombre);
+  let hayCambios = false;
+  if (!pkmn) {
+    pkmn = await obtenerJSON(`${API_BASE_URL}/pokemon/${nombre}/`);
+    hayCambios = true;
+  }
+  // Los pokémon cargados desde la lista (o guardados antes de existir este campo)
+  // no tienen descripción todavía
+  if (pkmn.descripcion === undefined) {
+    try {
+      pkmn.descripcion = await obtenerDescripcionPkmn(pkmn);
+      hayCambios = true;
+    } catch (error) {
+      // Sin descripción se puede mostrar igualmente la ficha. No se guarda nada en
+      // el campo para que se vuelva a intentar la próxima vez que se abra
+      console.error(`No se pudo cargar la descripción de ${nombre}:`, error);
+    }
+  }
+  if (hayCambios) await actualizarPkmn([pkmn]);
+  return pkmn;
 }
 
 function nombreDesdeHash() {
@@ -230,6 +260,14 @@ function crearFichaPkmn(pkmn) {
 
   dialogDetallePokemon.appendChild(nombrePokemonFicha);
   dialogDetallePokemon.appendChild(spritePokemonFicha);
+
+  if (pkmn.descripcion) {
+    const descripcionPokemonFicha = document.createElement("p");
+    descripcionPokemonFicha.classList = "descripcionPokemonFicha";
+    // textContent y no innerHTML: el texto viene de la API y se muestra tal cual
+    descripcionPokemonFicha.textContent = pkmn.descripcion;
+    dialogDetallePokemon.appendChild(descripcionPokemonFicha);
+  }
 }
 
 listaPokemons.addEventListener("scroll", () => {
