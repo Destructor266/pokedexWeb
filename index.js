@@ -14,6 +14,8 @@ const dbPkmnDex = abrirPkmnDb();
 let numeroPaginasActual = 0;
 let cargando = false;
 let hayMasPokemons = true;
+// Contador de cargas del modal: solo pinta su ficha la carga más reciente
+let ultimaPeticionModal = 0;
 
 // La API de IndexedDB funciona con eventos (onsuccess, onerror...), no con Promises.
 // Envolverla en una Promise permite usarla con async/await como el resto del código.
@@ -51,8 +53,21 @@ async function actualizarPkmn(pkmnData) {
     const transaccion = db.transaction(nombreStore, "readwrite");
     const pkmnObjectStore = transaccion.objectStore(nombreStore);
     // Solo llegan pokémon que no estaban en la caché, pero se usa put en lugar de add
-    // por si otra pestaña lo ha guardado entretanto; add fallaría por clave repetida
-    pkmnData.forEach((pkmn) => pkmnObjectStore.put(pkmn));
+    // por si otra pestaña (o la ficha) lo ha guardado entretanto; add fallaría por
+    // clave repetida. put reemplaza el registro entero, así que antes se lee el que
+    // hubiera para no perder la descripción que ya tuviera guardada. Leer y escribir
+    // en la misma transacción evita que otra escritura se cuele entre medias
+    pkmnData.forEach((pkmn) => {
+      const lectura = pkmnObjectStore.get(pkmn.id);
+      lectura.onsuccess = () => {
+        const guardado = lectura.result;
+        if (pkmn.descripcion === undefined && guardado?.descripcion !== undefined) {
+          pkmnObjectStore.put({ ...pkmn, descripcion: guardado.descripcion });
+        } else {
+          pkmnObjectStore.put(pkmn);
+        }
+      };
+    });
     // Los datos no están garantizados en disco hasta que la transacción se completa
     transaccion.oncomplete = () => resolve();
     transaccion.onerror = () => {
@@ -169,13 +184,23 @@ function crearEstructuraLista(pokemon) {
   nombrePokemon.classList = "nombrePokemon";
 
   enlacePokemon.href = "#" + pokemon.name;
-  spritePokemon.src = pokemon.sprites.front_default;
-  nombrePokemon.innerHTML = pokemon.name;
+  ponerSprite(spritePokemon, pokemon);
+  nombrePokemon.textContent = pokemon.name;
 
   enlacePokemon.appendChild(spritePokemon);
   enlacePokemon.appendChild(nombrePokemon);
   registroPokemon.appendChild(enlacePokemon);
   listaPokemons.appendChild(registroPokemon);
+}
+
+// Algunas formas (ids 10xxx) no tienen sprites.front_default (vale null). Asignar null
+// a src lo convierte en la URL relativa "null", que da 404 e icono de imagen rota;
+// en ese caso se deja la imagen sin src y solo se ve el círculo de fondo
+function ponerSprite(img, pokemon) {
+  // El nombre ya aparece al lado, así que la imagen es decorativa
+  img.alt = "";
+  const url = pokemon.sprites.front_default;
+  if (url) img.src = url;
 }
 
 // Pide /pokemon-species/ y devuelve la descripción en español (o en inglés si no hay).
@@ -223,6 +248,10 @@ function nombreDesdeHash() {
 }
 
 async function sincronizarModalConHash() {
+  // Cada llamada invalida las anteriores. No basta con comparar el nombre: si se cierra
+  // y se vuelve a abrir el mismo pokémon, la carga vieja y la nueva coincidirían y la
+  // ficha se pintaría dos veces
+  const idPeticion = ++ultimaPeticionModal;
   const nombre = nombreDesdeHash();
 
   if (!nombre) {
@@ -236,12 +265,12 @@ async function sincronizarModalConHash() {
 
   try {
     const pkmn = await obtenerDetallePkmn(nombre);
-    // Si mientras llegaba el pokémon el hash ha cambiado, esta respuesta ya no vale
-    if (nombreDesdeHash() !== nombre) return;
+    // Si mientras llegaba el pokémon ha empezado otra carga, esta respuesta ya no vale
+    if (idPeticion !== ultimaPeticionModal) return;
     crearFichaPkmn(pkmn);
   } catch (error) {
     console.error(`No se pudo cargar ${nombre}:`, error);
-    if (nombreDesdeHash() !== nombre) return;
+    if (idPeticion !== ultimaPeticionModal) return;
     dialogDetallePokemon.textContent = `No se pudo cargar "${nombre}"`;
   }
 }
@@ -255,8 +284,9 @@ function crearFichaPkmn(pkmn) {
   fichaPokemon.classList = "fichaPokemon";
   nombrePokemonFicha.classList = "nombrePokemonFicha";
 
-  spritePokemonFicha.src = pkmn.sprites.front_default;
-  nombrePokemonFicha.innerHTML = pkmn.name;
+  ponerSprite(spritePokemonFicha, pkmn);
+  // textContent y no innerHTML: el nombre viene de la API y se muestra tal cual
+  nombrePokemonFicha.textContent = pkmn.name;
 
   dialogDetallePokemon.appendChild(nombrePokemonFicha);
   dialogDetallePokemon.appendChild(spritePokemonFicha);

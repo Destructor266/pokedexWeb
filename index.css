@@ -129,8 +129,10 @@ body {
 }
 
 .spritePokemonFicha {
-  width: 160px;
-  height: 160px;
+  /* Justo el doble de 96px: con un factor no entero (p. ej. 160px) cada píxel del
+     sprite acabaría ocupando 1 o 2 píxeles y las líneas saldrían irregulares */
+  width: 192px;
+  height: 192px;
   /* Los sprites son pixel art de 96px: así se agrandan sin verse borrosos */
   image-rendering: pixelated;
   background-color: #e6f8e6;
